@@ -110,7 +110,7 @@ export default function Studio({ onVideoGenerated }) {
   };
 
   return (
-    <div className="glass p-8 rounded-2xl max-w-2xl w-full mx-auto shadow-2xl space-y-6">
+    <div className="glass p-6 md:p-8 rounded-2xl max-w-5xl w-full mx-auto shadow-2xl space-y-6">
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-white">Create a Reel</h2>
         <p className="text-gray-400 text-sm">Convert your script into a professionally edited video instantly.</p>

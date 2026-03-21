@@ -22,7 +22,7 @@ function App() {
 
       <main className="w-full z-10 flex flex-col items-center max-w-7xl mx-auto pt-20">
         {!videoUrl ? (
-          <div className="w-full max-w-2xl animate-fade-in-up">
+          <div className="w-full max-w-4xl px-4 animate-fade-in-up">
             <div className="text-center mb-10 space-y-4">
               <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
                 Turn your text into <br/>
