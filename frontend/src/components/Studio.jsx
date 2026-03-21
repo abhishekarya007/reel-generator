@@ -10,6 +10,8 @@ export default function Studio({ onVideoGenerated }) {
   const [volume, setVolume] = useState('+0%');
   const [removeSilence, setRemoveSilence] = useState(false);
   const [enhanceVoice, setEnhanceVoice] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState('9:16');
+  const [transitionStyle, setTransitionStyle] = useState('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -89,7 +91,9 @@ export default function Studio({ onVideoGenerated }) {
           keywords: mode === 'quick' ? keywords : "",
           clips: mode === 'custom' ? timelineClips : [],
           voice, rate, pitch,
-          volume, remove_silence: removeSilence, enhance_voice: enhanceVoice
+          volume, remove_silence: removeSilence, enhance_voice: enhanceVoice,
+          aspect_ratio: aspectRatio,
+          transition_style: transitionStyle
         })
       });
 
@@ -299,38 +303,68 @@ export default function Studio({ onVideoGenerated }) {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-6 mt-2 p-4 bg-gray-900/40 border border-gray-800/50 rounded-xl">
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <div className={`relative flex items-center justify-center w-6 h-6 border-2 rounded-md transition-colors ${removeSilence ? 'border-cyan-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
-              <input 
-                type="checkbox"
-                className="opacity-0 absolute inset-0 cursor-pointer"
-                checked={removeSilence}
-                onChange={(e) => setRemoveSilence(e.target.checked)}
-              />
-              {removeSilence && <div className="w-3 h-3 bg-cyan-500 rounded-sm"></div>}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-gray-200">Remove Silences</span>
-              <span className="text-xs text-gray-500">Fast-paced, jump-cut delivery</span>
-            </div>
-          </label>
+        <div className="bg-gray-900/40 p-5 rounded-xl border border-gray-700/50 space-y-4">
+          <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Advanced Audio</h3>
+          <div className="flex flex-col sm:flex-row gap-6">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative">
+                <input type="checkbox" className="sr-only" checked={removeSilence} onChange={(e) => setRemoveSilence(e.target.checked)} />
+                <div className={`w-10 h-6 bg-gray-700 rounded-full transition-colors ${removeSilence ? 'bg-cyan-500' : ''}`}></div>
+                <div className={`absolute w-4 h-4 bg-white rounded-full top-1 transition-transform ${removeSilence ? 'translate-x-5' : 'translate-x-1'}`}></div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Silence Removal</span>
+                <span className="text-xs text-gray-500">Fast-paced, jump-cut delivery</span>
+              </div>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative">
+                <input type="checkbox" className="sr-only" checked={enhanceVoice} onChange={(e) => setEnhanceVoice(e.target.checked)} />
+                <div className={`w-10 h-6 bg-gray-700 rounded-full transition-colors ${enhanceVoice ? 'bg-cyan-500' : ''}`}></div>
+                <div className={`absolute w-4 h-4 bg-white rounded-full top-1 transition-transform ${enhanceVoice ? 'translate-x-5' : 'translate-x-1'}`}></div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Podcast EQ Filter</span>
+                <span className="text-xs text-gray-500">Rich, punchy radio-style voice</span>
+              </div>
+            </label>
+          </div>
+        </div>
 
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <div className={`relative flex items-center justify-center w-6 h-6 border-2 rounded-md transition-colors ${enhanceVoice ? 'border-cyan-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
-              <input 
-                type="checkbox"
-                className="opacity-0 absolute inset-0 cursor-pointer"
-                checked={enhanceVoice}
-                onChange={(e) => setEnhanceVoice(e.target.checked)}
-              />
-              {enhanceVoice && <div className="w-3 h-3 bg-cyan-500 rounded-sm"></div>}
+        <div className="bg-gray-900/40 p-5 rounded-xl border border-gray-700/50 space-y-4">
+          <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Advanced Video Settings</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Aspect Ratio</label>
+              <select 
+                className="w-full bg-gray-950 border border-gray-700/50 rounded-lg p-3 text-sm text-white hover:border-cyan-500 transition-all cursor-pointer"
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value)}
+              >
+                <option value="9:16">9:16 (TikTok, Reels, Shorts)</option>
+                <option value="16:9">16:9 (YouTube, Desktop)</option>
+                <option value="1:1">1:1 (Instagram Square)</option>
+              </select>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-gray-200">Podcast EQ Filter</span>
-              <span className="text-xs text-gray-500">Rich, punchy radio-style voice</span>
-            </div>
-          </label>
+            
+            {mode === 'custom' && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Transition Style</label>
+                <select 
+                  className="w-full bg-gray-950 border border-gray-700/50 rounded-lg p-3 text-sm text-white hover:border-cyan-500 transition-all cursor-pointer"
+                  value={transitionStyle}
+                  onChange={(e) => setTransitionStyle(e.target.value)}
+                >
+                  <option value="none">None (Hard Cut)</option>
+                  <option value="fade">Smooth Fade</option>
+                  <option value="wipeleft">Wipe Left</option>
+                  <option value="circlecrop">Circle Crop</option>
+                  <option value="pixelize">Pixelize</option>
+                  <option value="hblur">Horizontal Blur</option>
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {error && (

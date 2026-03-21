@@ -43,6 +43,8 @@ class GenerateRequest(BaseModel):
     volume: str = "+0%"
     remove_silence: bool = False
     enhance_voice: bool = False
+    aspect_ratio: str = "9:16"
+    transition_style: str = "none"
 
 @app.get("/")
 def read_root():
@@ -129,7 +131,9 @@ async def generate_reel(request: GenerateRequest):
                 custom_video_data,
                 subtitles_path,
                 request.remove_silence,
-                request.enhance_voice
+                request.enhance_voice,
+                request.aspect_ratio,
+                request.transition_style
             )
         
         filename = os.path.basename(final_video_path)

@@ -6,7 +6,7 @@ from imageio_ffmpeg import get_ffmpeg_exe
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, remove_silence: bool = False, enhance_voice: bool = False) -> str:
+def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, remove_silence: bool = False, enhance_voice: bool = False, aspect_ratio: str = "9:16") -> str:
     if not video_paths:
         raise ValueError("At least one video path is required")
         
@@ -39,11 +39,13 @@ def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, 
     audio_filter_str = ",".join(audio_filters) if audio_filters else "anull"
 
     # Check if subtitles present - Note subtitles code disabled below temporarily based on prior instruction
+    ar_map = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
+    w, h = ar_map.get(aspect_ratio, (1080, 1920))
     if subtitles_path and os.path.exists(subtitles_path):
         sub_path_escaped = os.path.abspath(subtitles_path).replace("\\", "/").replace(":", "\\:")
-        filter_complex = f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v];[1:a]{audio_filter_str}[a]"
+        filter_complex = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,format=yuv420p,setsar=1/1[v];[1:a]{audio_filter_str}[a]"
     else:
-        filter_complex = f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v];[1:a]{audio_filter_str}[a]"
+        filter_complex = f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,format=yuv420p,setsar=1/1[v];[1:a]{audio_filter_str}[a]"
         
     cmd.extend([
         "-filter_complex", filter_complex,
@@ -69,7 +71,7 @@ def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, 
         
     return output_path
 
-def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str = None, remove_silence: bool = False, enhance_voice: bool = False) -> str:
+def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str = None, remove_silence: bool = False, enhance_voice: bool = False, aspect_ratio: str = "9:16", transition_style: str = "none") -> str:
     ffmpeg_exe = get_ffmpeg_exe()
     output_path = os.path.join(TEMP_DIR, f"final_{uuid.uuid4().hex}.mp4")
     
@@ -89,23 +91,46 @@ def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str
     
     filter_complex_parts = []
     
-    # Trim and scale each video individually
-    for i, (vp, start, end) in enumerate(custom_videos):
-        duration = max(0.1, end - start)  # Ensure positive duration
-        filter_complex_parts.append(f"[{i}:v]trim=start={start}:duration={duration},setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1/1[v{i}]")
-        
-    # Concat the trimmed videos
-    concat_inputs = "".join([f"[v{i}]" for i in range(len(custom_videos))])
-    filter_complex_parts.append(f"{concat_inputs}concat=n={len(custom_videos)}:v=1:a=0[v_out]")
+    ar_map = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
+    w, h = ar_map.get(aspect_ratio, (1080, 1920))
     
-    # Map the audio
+    # Trim and scale each video individually
+    clip_durations = []
+    for i, (vp, start, end) in enumerate(custom_videos):
+        duration = max(0.5, end - start)  # Ensure minimum length for transitions
+        clip_durations.append(duration)
+        filter_complex_parts.append(f"[{i}:v]trim=start={start}:duration={duration},setpts=PTS-STARTPTS,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,format=yuv420p,setsar=1/1[v{i}]")
+        
+    final_v_out = ""
+    if transition_style == "none" or len(custom_videos) < 2:
+        concat_inputs = "".join([f"[v{i}]" for i in range(len(custom_videos))])
+        filter_complex_parts.append(f"{concat_inputs}concat=n={len(custom_videos)}:v=1:a=0[v_out]")
+        final_v_out = "[v_out]"
+    else:
+        valid_transitions = ["fade", "wipeleft", "wiperight", "slideleft", "slideright", "circlecrop", "rectcrop", "pixelize", "hblur", "smoothleft"]
+        xstyle = transition_style if transition_style in valid_transitions else "fade"
+        
+        last_out = "[v0]"
+        current_cumulative_duration = clip_durations[0]
+        transition_duration = 0.5
+        
+        for i in range(1, len(custom_videos)):
+            offset = current_cumulative_duration - transition_duration
+            if offset < 0: offset = 0
+            
+            out_node = f"[xf{i}]"
+            filter_complex_parts.append(f"{last_out}[v{i}]xfade=transition={xstyle}:duration={transition_duration}:offset={offset}{out_node}")
+            last_out = out_node
+            current_cumulative_duration = current_cumulative_duration + clip_durations[i] - transition_duration
+            
+        final_v_out = last_out
+
+    # Audio mapping
     filter_complex_parts.append(f"[{audio_idx}:a]{audio_filter_str}[a_out]")
     
-    filter_complex = ";".join(filter_complex_parts)
-    
     cmd.extend([
-        "-filter_complex", filter_complex,
-        "-map", "[v_out]",
+        "-filter_complex", ";".join(filter_complex_parts),
+        "-map", final_v_out,
         "-map", "[a_out]",
         "-c:v", "libx264",
         "-c:a", "aac",
@@ -115,6 +140,6 @@ def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str
     
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
-        raise RuntimeError(f"FFmpeg Custom Reel failed:\n{result.stderr}")
+        raise RuntimeError(f"FFmpeg Custom failed:\n{result.stderr}")
         
     return output_path
