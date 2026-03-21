@@ -6,7 +6,7 @@ from imageio_ffmpeg import get_ffmpeg_exe
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None) -> str:
+def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, remove_silence: bool = False, enhance_voice: bool = False) -> str:
     if not video_paths:
         raise ValueError("At least one video path is required")
         
@@ -29,21 +29,21 @@ def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None) 
         "-i", audio_path,
     ]
     
-    filter_complex = ""
-    
-    # Check if subtitles present
+    # Audio filter chain
+    audio_filters = []
+    if remove_silence:
+        audio_filters.append("silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-35dB")
+    if enhance_voice:
+        audio_filters.append("bass=g=5,treble=g=3,acompressor=ratio=4")
+        
+    audio_filter_str = ",".join(audio_filters) if audio_filters else "anull"
+
+    # Check if subtitles present - Note subtitles code disabled below temporarily based on prior instruction
     if subtitles_path and os.path.exists(subtitles_path):
-        # We need to escape the path for the subtitles filter
         sub_path_escaped = os.path.abspath(subtitles_path).replace("\\", "/").replace(":", "\\:")
-        # Scale to 1080x1920 cropping to center, then add subtitles with a standard font
-        filter_complex = "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v];[1:a]anull[a]"
-
-
-
-
-
+        filter_complex = f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v];[1:a]{audio_filter_str}[a]"
     else:
-        filter_complex = "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v];[1:a]anull[a]"
+        filter_complex = f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v];[1:a]{audio_filter_str}[a]"
         
     cmd.extend([
         "-filter_complex", filter_complex,

@@ -6,6 +6,9 @@ export default function Studio({ onVideoGenerated }) {
   const [voice, setVoice] = useState('en-US-AriaNeural');
   const [rate, setRate] = useState('+0%');
   const [pitch, setPitch] = useState('default');
+  const [volume, setVolume] = useState('+0%');
+  const [removeSilence, setRemoveSilence] = useState(false);
+  const [enhanceVoice, setEnhanceVoice] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -22,7 +25,10 @@ export default function Studio({ onVideoGenerated }) {
       const response = await fetch('http://localhost:8000/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script, keywords, voice, rate, pitch })
+        body: JSON.stringify({ 
+          script, keywords, voice, rate, pitch,
+          volume, remove_silence: removeSilence, enhance_voice: enhanceVoice
+        })
       });
 
       if (!response.ok) {
@@ -71,7 +77,7 @@ export default function Studio({ onVideoGenerated }) {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Voice & Language</label>
             <select 
@@ -120,6 +126,54 @@ export default function Studio({ onVideoGenerated }) {
               <option value="+10Hz">High</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Volume</label>
+            <select 
+              className="w-full bg-gray-900/50 border border-gray-700/50 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-inner appearance-none cursor-pointer"
+              value={volume}
+              onChange={(e) => setVolume(e.target.value)}
+            >
+              <option value="-20%">Soft</option>
+              <option value="+0%">Normal</option>
+              <option value="+20%">Loud</option>
+              <option value="+50%">Very Loud</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-6 mt-2 p-4 bg-gray-900/40 border border-gray-800/50 rounded-xl">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div className={`relative flex items-center justify-center w-6 h-6 border-2 rounded-md transition-colors ${removeSilence ? 'border-cyan-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
+              <input 
+                type="checkbox"
+                className="opacity-0 absolute inset-0 cursor-pointer"
+                checked={removeSilence}
+                onChange={(e) => setRemoveSilence(e.target.checked)}
+              />
+              {removeSilence && <div className="w-3 h-3 bg-cyan-500 rounded-sm"></div>}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-200">Remove Silences</span>
+              <span className="text-xs text-gray-500">Fast-paced, jump-cut delivery</span>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div className={`relative flex items-center justify-center w-6 h-6 border-2 rounded-md transition-colors ${enhanceVoice ? 'border-cyan-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
+              <input 
+                type="checkbox"
+                className="opacity-0 absolute inset-0 cursor-pointer"
+                checked={enhanceVoice}
+                onChange={(e) => setEnhanceVoice(e.target.checked)}
+              />
+              {enhanceVoice && <div className="w-3 h-3 bg-cyan-500 rounded-sm"></div>}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-200">Podcast EQ Filter</span>
+              <span className="text-xs text-gray-500">Rich, punchy radio-style voice</span>
+            </div>
+          </label>
         </div>
 
         {error && (

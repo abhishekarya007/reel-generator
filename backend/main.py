@@ -28,6 +28,9 @@ class GenerateRequest(BaseModel):
     voice: str = "en-US-AriaNeural"
     rate: str = "+0%"
     pitch: str = "default"
+    volume: str = "+0%"
+    remove_silence: bool = False
+    enhance_voice: bool = False
 
 @app.get("/")
 def read_root():
@@ -41,7 +44,8 @@ async def generate_reel(request: GenerateRequest):
             request.script, 
             voice=request.voice, 
             rate=request.rate, 
-            pitch=request.pitch
+            pitch=request.pitch,
+            volume=request.volume
         )
         audio_path = audio_data["audio_path"]
         subtitles_path = audio_data["subtitles_path"]
@@ -58,7 +62,9 @@ async def generate_reel(request: GenerateRequest):
             create_reel, 
             audio_path, 
             video_paths, 
-            subtitles_path
+            subtitles_path,
+            request.remove_silence,
+            request.enhance_voice
         )
         
         filename = os.path.basename(final_video_path)
