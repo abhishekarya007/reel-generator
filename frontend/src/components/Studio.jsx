@@ -114,7 +114,24 @@ export default function Studio({ onVideoGenerated }) {
   };
 
   return (
-    <div className="glass p-6 md:p-8 rounded-2xl max-w-5xl w-full mx-auto shadow-2xl space-y-6">
+    <>
+      {loading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/80 backdrop-blur-md animate-fade-in">
+          <div className="relative w-24 h-24 mb-10">
+            <div className="absolute inset-0 border-4 border-cyan-500/20 rounded-full animate-ping delay-75"></div>
+            <div className="absolute inset-0 border-[6px] border-transparent border-t-cyan-400 border-b-cyan-400 rounded-full animate-spin"></div>
+          </div>
+          <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 animate-pulse mb-5 tracking-tight">
+             Building Cinematic Reel...
+          </h2>
+          <div className="text-gray-300 max-w-md text-center text-sm leading-relaxed border border-gray-700/80 bg-gray-900/80 p-5 rounded-2xl shadow-inner backdrop-blur-sm">
+             <p className="mb-2">Please wait while the FFmpeg engine streams AI audio, dynamically auto-mixes EQ levels, trims source clips, and blends everything using smooth cinematic transitions.</p>
+             <span className="text-cyan-400 mt-4 block font-bold uppercase tracking-widest text-xs animate-pulse shadow-cyan-500/50">Ready in a few seconds</span>
+          </div>
+        </div>
+      )}
+      
+      <div className="glass p-6 md:p-8 rounded-2xl max-w-5xl w-full mx-auto shadow-2xl space-y-6">
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-white">Create a Reel</h2>
         <p className="text-gray-400 text-sm">Convert your script into a professionally edited video instantly.</p>
@@ -378,17 +395,10 @@ export default function Studio({ onVideoGenerated }) {
           disabled={loading}
           className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all transform active:scale-[0.98] ${loading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25'}`}
         >
-          {loading ? (
-            <span className="flex items-center justify-center gap-3">
-              <svg className="animate-spin h-5 w-5 text-gray-400" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Generating Magic...
-            </span>
-          ) : 'Generate Reel'}
+          {loading ? 'Rendering Pipeline Active...' : 'Generate Reel'}
         </button>
       </div>
     </div>
+    </>
   );
 }
