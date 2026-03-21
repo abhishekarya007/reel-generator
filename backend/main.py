@@ -1,14 +1,19 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, File, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List, Optional
 import os
 import asyncio
+import requests
+import shutil
+import uuid
+import subprocess
 from dotenv import load_dotenv
 
 from services.tts_service import generate_audio
 from services.video_service import fetch_videos
-from services.editor_service import create_reel
+from services.editor_service import create_reel, create_custom_reel
 
 load_dotenv()
 
@@ -22,9 +27,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class VideoClip(BaseModel):
+    url: str
+    start_time: float
+    end_time: float
+
 class GenerateRequest(BaseModel):
+    mode: str = "quick" # "quick" or "custom"
     script: str
-    keywords: str
+    keywords: Optional[str] = ""
+    clips: Optional[List[VideoClip]] = []
     voice: str = "en-US-AriaNeural"
     rate: str = "+0%"
     pitch: str = "default"
@@ -35,6 +47,37 @@ class GenerateRequest(BaseModel):
 @app.get("/")
 def read_root():
     return {"message": "Reel Generator API is running!"}
+
+@app.get("/api/videos/search")
+def search_videos(query: str, num_videos: int = 15):
+    api_key = os.getenv("PEXELS_API_KEY")
+    if not api_key or api_key == "your_pexels_api_key_here":
+        raise HTTPException(status_code=400, detail="Valid PEXELS_API_KEY is not set.")
+    headers = {"Authorization": api_key}
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page={num_videos}&orientation=portrait"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+@app.post("/api/videos/upload")
+async def upload_video(file: UploadFile = File(...)):
+    file_ext = file.filename.split('.')[-1]
+    filename = f"upload_{uuid.uuid4().hex}.{file_ext}"
+    file_path = os.path.join("temp", filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"url": f"http://localhost:8000/api/video/{filename}", "path": file_path}
+
+async def download_clip_if_needed(url: str) -> str:
+    if url.startswith("http://localhost:8000/api/video/"):
+        return os.path.join("temp", url.split("/")[-1])
+    vid_resp = requests.get(url, stream=True)
+    vid_resp.raise_for_status()
+    file_path = os.path.join("temp", f"dl_{uuid.uuid4().hex}.mp4")
+    with open(file_path, "wb") as f:
+        for chunk in vid_resp.iter_content(chunk_size=8192):
+            f.write(chunk)
+    return file_path
 
 @app.post("/api/generate")
 async def generate_reel(request: GenerateRequest):
@@ -50,22 +93,44 @@ async def generate_reel(request: GenerateRequest):
         audio_path = audio_data["audio_path"]
         subtitles_path = audio_data["subtitles_path"]
         
-        # 2. Fetch Videos
-        video_paths = fetch_videos(request.keywords, num_videos=3)
-        if not video_paths:
-            raise HTTPException(status_code=400, detail="Could not find stock videos for the given keywords.")
-            
-        # 3. Create Final Reel
+        # 2. Process Videos based on mode
         loop = asyncio.get_event_loop()
-        final_video_path = await loop.run_in_executor(
-            None, 
-            create_reel, 
-            audio_path, 
-            video_paths, 
-            subtitles_path,
-            request.remove_silence,
-            request.enhance_voice
-        )
+        final_video_path = ""
+        video_paths_to_cleanup = []
+        
+        if request.mode == "quick":
+            video_paths = fetch_videos(request.keywords, num_videos=3)
+            if not video_paths:
+                raise HTTPException(status_code=400, detail="Could not find stock videos for keywords.")
+            video_paths_to_cleanup = video_paths
+            final_video_path = await loop.run_in_executor(
+                None, 
+                create_reel, 
+                audio_path, 
+                video_paths, 
+                subtitles_path,
+                request.remove_silence,
+                request.enhance_voice
+            )
+        else:
+            custom_video_data = []
+            for clip in request.clips:
+                local_path = await download_clip_if_needed(clip.url)
+                if not local_path.startswith("temp/upload_"): # Preserve uploads for reuse
+                    video_paths_to_cleanup.append(local_path)
+                custom_video_data.append((local_path, clip.start_time, clip.end_time))
+            if not custom_video_data:
+                raise HTTPException(status_code=400, detail="No clips provided for custom mode.")
+                
+            final_video_path = await loop.run_in_executor(
+                None,
+                create_custom_reel,
+                audio_path,
+                custom_video_data,
+                subtitles_path,
+                request.remove_silence,
+                request.enhance_voice
+            )
         
         filename = os.path.basename(final_video_path)
         
@@ -73,7 +138,7 @@ async def generate_reel(request: GenerateRequest):
         try:
             if os.path.exists(audio_path): os.remove(audio_path)
             if subtitles_path and os.path.exists(subtitles_path): os.remove(subtitles_path)
-            for vp in video_paths:
+            for vp in video_paths_to_cleanup:
                 if os.path.exists(vp): os.remove(vp)
         except Exception as cleanup_err:
             print(f"Cleanup Error: {cleanup_err}")
