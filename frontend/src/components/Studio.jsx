@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 export default function Studio({ onVideoGenerated }) {
   const [script, setScript] = useState('');
   const [keywords, setKeywords] = useState('');
+  const [voice, setVoice] = useState('en-US-AriaNeural');
+  const [rate, setRate] = useState('+0%');
+  const [pitch, setPitch] = useState('default');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -19,7 +22,7 @@ export default function Studio({ onVideoGenerated }) {
       const response = await fetch('http://localhost:8000/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script, keywords })
+        body: JSON.stringify({ script, keywords, voice, rate, pitch })
       });
 
       if (!response.ok) {
@@ -66,6 +69,57 @@ export default function Studio({ onVideoGenerated }) {
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
           />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Voice & Language</label>
+            <select 
+              className="w-full bg-gray-900/50 border border-gray-700/50 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-inner appearance-none cursor-pointer"
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+            >
+              <optgroup label="English (US)">
+                <option value="en-US-AriaNeural">Female (Aria)</option>
+                <option value="en-US-GuyNeural">Male (Guy)</option>
+              </optgroup>
+              <optgroup label="English (UK)">
+                <option value="en-GB-SoniaNeural">Female (Sonia)</option>
+                <option value="en-GB-RyanNeural">Male (Ryan)</option>
+              </optgroup>
+              <optgroup label="Hindi (India)">
+                <option value="hi-IN-SwaraNeural">Female (Swara)</option>
+                <option value="hi-IN-MadhurNeural">Male (Madhur)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Speed</label>
+            <select 
+              className="w-full bg-gray-900/50 border border-gray-700/50 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-inner appearance-none cursor-pointer"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+            >
+              <option value="-25%">Slow (0.75x)</option>
+              <option value="+0%">Normal (1.0x)</option>
+              <option value="+25%">Fast (1.25x)</option>
+              <option value="+50%">Very Fast (1.5x)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Pitch</label>
+            <select 
+              className="w-full bg-gray-900/50 border border-gray-700/50 rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-inner appearance-none cursor-pointer"
+              value={pitch}
+              onChange={(e) => setPitch(e.target.value)}
+            >
+              <option value="-10Hz">Low</option>
+              <option value="default">Normal</option>
+              <option value="+10Hz">High</option>
+            </select>
+          </div>
         </div>
 
         {error && (

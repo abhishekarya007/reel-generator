@@ -25,6 +25,9 @@ app.add_middleware(
 class GenerateRequest(BaseModel):
     script: str
     keywords: str
+    voice: str = "en-US-AriaNeural"
+    rate: str = "+0%"
+    pitch: str = "default"
 
 @app.get("/")
 def read_root():
@@ -34,7 +37,12 @@ def read_root():
 async def generate_reel(request: GenerateRequest):
     try:
         # 1. Generate Audio & Subtitles
-        audio_data = await generate_audio(request.script)
+        audio_data = await generate_audio(
+            request.script, 
+            voice=request.voice, 
+            rate=request.rate, 
+            pitch=request.pitch
+        )
         audio_path = audio_data["audio_path"]
         subtitles_path = audio_data["subtitles_path"]
         
@@ -54,6 +62,16 @@ async def generate_reel(request: GenerateRequest):
         )
         
         filename = os.path.basename(final_video_path)
+        
+        # Cleanup intermediate files
+        try:
+            if os.path.exists(audio_path): os.remove(audio_path)
+            if subtitles_path and os.path.exists(subtitles_path): os.remove(subtitles_path)
+            for vp in video_paths:
+                if os.path.exists(vp): os.remove(vp)
+        except Exception as cleanup_err:
+            print(f"Cleanup Error: {cleanup_err}")
+            
         return {"status": "success", "video_url": f"/api/video/{filename}"}
         
     except Exception as e:
