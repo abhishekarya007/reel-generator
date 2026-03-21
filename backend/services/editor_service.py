@@ -53,6 +53,11 @@ def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, 
         "-map", "[a]",
         "-c:v", "libx264",
         "-c:a", "aac",
+        "-pix_fmt", "yuv420p",
+        "-profile:v", "high",
+        "-level", "4.0",
+        "-r", "30",
+        "-movflags", "+faststart",
         "-shortest", # End when the shortest input (usually audio, or padded video) ends
         output_path
     ])
@@ -134,6 +139,11 @@ def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str
         "-map", "[a_out]",
         "-c:v", "libx264",
         "-c:a", "aac",
+        "-pix_fmt", "yuv420p",
+        "-profile:v", "high",
+        "-level", "4.0",
+        "-r", "30",
+        "-movflags", "+faststart",
         "-shortest",
         output_path
     ])
