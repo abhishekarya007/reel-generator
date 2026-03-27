@@ -1,0 +1,22 @@
+# Environments
+.env*
+.env
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Caching & Metadata
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Generated Video Files (Must be ephemeral!)
+temp/
+assets/
+
+# Git
+.git/

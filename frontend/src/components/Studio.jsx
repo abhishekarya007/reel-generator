@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 export default function Studio({ onVideoGenerated }) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const [mode, setMode] = useState('quick');
   const [script, setScript] = useState('');
   const [keywords, setKeywords] = useState('');
@@ -26,7 +27,7 @@ export default function Studio({ onVideoGenerated }) {
     if (!searchQuery) return;
     setIsSearching(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/videos/search?query=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`${API_URL}/api/videos/search?query=${encodeURIComponent(searchQuery)}`);
       if (!res.ok) throw new Error("Search failed");
       const data = await res.json();
       setSearchResults(data.videos || []);
@@ -44,7 +45,7 @@ export default function Studio({ onVideoGenerated }) {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch('http://localhost:8000/api/videos/upload', {
+      const res = await fetch(`${API_URL}/api/videos/upload`, {
         method: 'POST',
         body: formData
       });
@@ -83,7 +84,7 @@ export default function Studio({ onVideoGenerated }) {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/generate', {
+      const response = await fetch(`${API_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -104,7 +105,7 @@ export default function Studio({ onVideoGenerated }) {
 
       const data = await response.json();
       if (data.status === "success") {
-        onVideoGenerated(`http://localhost:8000${data.video_url}`);
+        onVideoGenerated(`${API_URL}${data.video_url}`);
       }
     } catch (err) {
       setError(err.message || 'An unexpected error occurred.');
