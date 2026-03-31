@@ -26,6 +26,7 @@ export default function Studio({ onVideoGenerated }) {
   const [isSearching, setIsSearching] = useState(false);
   const [timelineClips, setTimelineClips] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [draggedIdx, setDraggedIdx] = useState(null);
 
   const handleSearch = async () => {
     if (!searchQuery) return;
@@ -321,8 +322,34 @@ export default function Studio({ onVideoGenerated }) {
               </div>
               <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {timelineClips.map((clip, idx) => (
-                  <div key={clip.id} className="flex gap-4 items-center bg-gray-950 p-3 rounded-lg border border-gray-700 shadow-inner">
-                    <span className="text-gray-500 font-bold w-6 text-sm text-center">{idx + 1}.</span>
+                  <div 
+                    key={clip.id} 
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedIdx(idx);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.currentTarget.style.opacity = '0.4';
+                    }}
+                    onDragEnd={(e) => {
+                      setDraggedIdx(null);
+                      e.currentTarget.style.opacity = '1';
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedIdx === null || draggedIdx === idx) return;
+                      const newClips = [...timelineClips];
+                      const [draggedItem] = newClips.splice(draggedIdx, 1);
+                      newClips.splice(idx, 0, draggedItem);
+                      setTimelineClips(newClips);
+                      setDraggedIdx(null);
+                    }}
+                    className={`flex gap-3 md:gap-4 items-center bg-gray-950 p-3 rounded-lg border shadow-inner transition-transform cursor-grab active:cursor-grabbing ${draggedIdx === idx ? 'border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'border-gray-700 hover:border-gray-500'}`}
+                  >
+                    <div className="flex flex-col items-center justify-center text-gray-600 mr-1 hidden sm:flex">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </div>
+                    <span className="text-gray-500 font-bold w-4 md:w-6 text-sm text-center">{idx + 1}.</span>
                     <video src={clip.url} poster={clip.thumbnail} controls preload="metadata" className="w-20 h-28 object-cover rounded bg-black flex-shrink-0 border border-gray-800" />
                     <div className="flex-1 flex gap-4">
                       <div className="flex flex-col flex-1">
