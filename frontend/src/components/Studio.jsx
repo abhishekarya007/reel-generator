@@ -66,7 +66,13 @@ export default function Studio({ onVideoGenerated }) {
   };
 
   const getTotalVideoDuration = () => {
-    return timelineClips.reduce((acc, clip) => acc + Math.max(0, clip.end_time - clip.start_time), 0).toFixed(1);
+    const rawSum = timelineClips.reduce((acc, clip) => acc + Math.max(0, clip.end_time - clip.start_time), 0);
+    if (timelineClips.length < 2 || transitionStyle === 'none') {
+      return rawSum.toFixed(1);
+    }
+    // FFmpeg's xfade dynamically consumes 0.5s on each transition overlap intersection
+    const overlapLoss = (timelineClips.length - 1) * 0.5;
+    return Math.max(0, rawSum - overlapLoss).toFixed(1);
   };
 
   const handleGenerate = async () => {
