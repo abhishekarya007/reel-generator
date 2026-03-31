@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 from services.tts_service import generate_audio
 from services.video_service import fetch_videos
-from services.editor_service import create_reel, create_custom_reel
+from services.editor_service import create_reel, create_custom_reel, create_preview_reel
 
 load_dotenv()
 
@@ -45,6 +45,7 @@ class GenerateRequest(BaseModel):
     enhance_voice: bool = False
     aspect_ratio: str = "9:16"
     transition_style: str = "none"
+    is_preview: bool = False
 
 @app.get("/")
 def read_root():
@@ -84,6 +85,35 @@ async def download_clip_if_needed(url: str) -> str:
 @app.post("/api/generate")
 async def generate_reel(request: GenerateRequest):
     try:
+        if request.is_preview and request.mode == "custom":
+            loop = asyncio.get_event_loop()
+            video_paths_to_cleanup = []
+            custom_video_data = []
+            
+            for clip in request.clips:
+                local_path = await download_clip_if_needed(clip.url)
+                if not local_path.startswith("temp/upload_"):
+                    video_paths_to_cleanup.append(local_path)
+                custom_video_data.append((local_path, clip.start_time, clip.end_time))
+                
+            if not custom_video_data:
+                raise HTTPException(status_code=400, detail="No timeline clips to preview.")
+            
+            final_video_path = await loop.run_in_executor(
+                None,
+                create_preview_reel,
+                custom_video_data,
+                request.aspect_ratio,
+                request.transition_style
+            )
+            filename = os.path.basename(final_video_path)
+            
+            # Fast cleanup for preview
+            for vp in video_paths_to_cleanup:
+                if os.path.exists(vp): os.remove(vp)
+                
+            return {"status": "success", "url": f"http://localhost:8000/api/video/{filename}"}
+
         # 1. Generate Audio & Subtitles
         audio_data = await generate_audio(
             request.script, 

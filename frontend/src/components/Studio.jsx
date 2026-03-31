@@ -15,6 +15,8 @@ export default function Studio({ onVideoGenerated }) {
   const [transitionStyle, setTransitionStyle] = useState('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   // Timeline State
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,13 +53,18 @@ export default function Studio({ onVideoGenerated }) {
       });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
-      setTimelineClips([...timelineClips, {
-        id: Date.now(),
-        url: data.url,
-        thumbnail: "https://via.placeholder.com/300x533?text=Local+Upload",
-        start_time: 0,
-        end_time: 5
-      }]);
+      
+      const videoElement = document.createElement('video');
+      videoElement.src = data.url;
+      videoElement.onloadedmetadata = () => {
+        setTimelineClips(prev => [...prev, {
+          id: Date.now(),
+          url: data.url,
+          thumbnail: null,
+          start_time: 0,
+          end_time: parseFloat(videoElement.duration.toFixed(1))
+        }]);
+      };
     } catch (err) {
       console.error(err);
     } finally {
@@ -73,6 +80,39 @@ export default function Studio({ onVideoGenerated }) {
     // FFmpeg's xfade dynamically consumes 0.5s on each transition overlap intersection
     const overlapLoss = (timelineClips.length - 1) * 0.5;
     return Math.max(0, rawSum - overlapLoss).toFixed(1);
+  };
+
+  const handlePreview = async () => {
+    if (timelineClips.length === 0) {
+      setError("Please add clips to the timeline to preview."); return;
+    }
+    setError(null);
+    setPreviewLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          mode, script: "preview", 
+          clips: timelineClips,
+          aspect_ratio: aspectRatio,
+          transition_style: transitionStyle,
+          is_preview: true
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || "Fast rendering failed");
+      }
+      const data = await response.json();
+      setPreviewUrl(data.url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -204,13 +244,17 @@ export default function Studio({ onVideoGenerated }) {
                     <div key={vid.id} className="flex flex-col bg-gray-950 rounded-lg border border-gray-700 hover:border-cyan-500 transition-all overflow-hidden shadow-lg">
                       <video src={optimalVideoUrl} poster={vid.image} controls preload="metadata" className="w-full aspect-[9/16] object-cover bg-black" />
                       <button onClick={() => {
-                        setTimelineClips([...timelineClips, {
-                          id: Date.now() + Math.random(),
-                          url: optimalVideoUrl,
-                          thumbnail: vid.image,
-                          start_time: 0,
-                          end_time: 5
-                        }])
+                        const videoElement = document.createElement('video');
+                        videoElement.src = optimalVideoUrl;
+                        videoElement.onloadedmetadata = () => {
+                          setTimelineClips(prev => [...prev, {
+                            id: Date.now() + Math.random(),
+                            url: optimalVideoUrl,
+                            thumbnail: vid.image,
+                            start_time: 0,
+                            end_time: parseFloat(videoElement.duration.toFixed(1))
+                          }]);
+                        };
                       }} className="bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-bold py-2.5 text-[10px] sm:text-xs uppercase tracking-widest transition-colors border-t border-gray-700">
                         + Add To Reel
                       </button>
@@ -397,14 +441,43 @@ export default function Studio({ onVideoGenerated }) {
           </div>
         )}
 
-        <button 
-          onClick={handleGenerate}
-          disabled={loading}
-          className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all transform active:scale-[0.98] ${loading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25'}`}
-        >
-          {loading ? 'Rendering Pipeline Active...' : 'Generate Reel'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-4 mt-6">
+          {mode === 'custom' && (
+            <button 
+              onClick={handlePreview}
+              disabled={loading || previewLoading}
+              className={`flex-1 py-4 px-6 rounded-xl font-bold transition-all transform active:scale-[0.98] ${previewLoading ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 text-white shadow-lg shadow-purple-500/25'}`}
+            >
+              {previewLoading ? 'Rendering Fast Preview...' : '👁️ Fast Preview'}
+            </button>
+          )}
+          <button 
+            onClick={handleGenerate}
+            disabled={loading || previewLoading}
+            className={`flex-1 py-4 px-6 rounded-xl font-bold transition-all transform active:scale-[0.98] ${loading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25'}`}
+          >
+            {loading ? 'Rendering Pipeline Active...' : 'Generate Reel'}
+          </button>
+        </div>
       </div>
+      
+      {/* Real-time Transition Preview Modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm shadow-2xl">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl overflow-hidden max-w-[360px] w-full relative">
+            <button 
+              onClick={() => setPreviewUrl(null)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/80 text-white hover:bg-red-500 flex items-center justify-center z-10 transition-colors"
+            >
+              ✕
+            </button>
+            <div className="p-3 bg-gray-900 border-b border-gray-800 flex justify-between items-center">
+              <h3 className="text-white text-xs font-bold uppercase tracking-widest text-purple-400">Lightning Preview</h3>
+            </div>
+            <video src={previewUrl} controls autoPlay loop className="w-full aspect-[9/16] object-cover bg-black" />
+          </div>
+        </div>
+      )}
     </div>
     </>
   );
