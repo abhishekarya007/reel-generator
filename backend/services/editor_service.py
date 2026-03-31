@@ -160,7 +160,7 @@ def create_preview_reel(custom_videos: list, aspect_ratio: str = "9:16", transit
     cmd = [ffmpeg_exe, "-y"]
     
     for vp, start, end in custom_videos:
-        cmd.extend(["-t", str(max(0.5, end - start)), "-ss", str(start), "-i", os.path.abspath(vp)])
+        cmd.extend(["-i", os.path.abspath(vp)])
         
     if audio_path and os.path.exists(audio_path):
         cmd.extend(["-i", os.path.abspath(audio_path)])
@@ -174,7 +174,7 @@ def create_preview_reel(custom_videos: list, aspect_ratio: str = "9:16", transit
     for i, (vp, start, end) in enumerate(custom_videos):
         duration = max(0.5, end - start)  
         clip_durations.append(duration)
-        filter_complex_parts.append(f"[{i}:v]trim=start=0:duration={duration},setpts=PTS-STARTPTS,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,format=yuv420p,setsar=1/1[v{i}]")
+        filter_complex_parts.append(f"[{i}:v]trim=start={start}:duration={duration},setpts=PTS-STARTPTS,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,format=yuv420p,setsar=1/1[v{i}]")
         
     final_v_out = ""
     if transition_style == "none" or len(custom_videos) < 2:
@@ -216,6 +216,7 @@ def create_preview_reel(custom_videos: list, aspect_ratio: str = "9:16", transit
     else:
         final_args.append("-an")
         
+    final_args.append("-shortest")
     final_args.append(output_path)
     cmd.extend(final_args)
     

@@ -64,7 +64,8 @@ export default function Studio({ onVideoGenerated }) {
           url: data.url,
           thumbnail: null,
           start_time: 0,
-          end_time: parseFloat(videoElement.duration.toFixed(1))
+          end_time: parseFloat(videoElement.duration.toFixed(1)),
+          max_duration: parseFloat(videoElement.duration.toFixed(1))
         }]);
       };
     } catch (err) {
@@ -291,7 +292,8 @@ export default function Studio({ onVideoGenerated }) {
                             url: optimalVideoUrl,
                             thumbnail: vid.image,
                             start_time: 0,
-                            end_time: parseFloat(videoElement.duration.toFixed(1))
+                            end_time: parseFloat(videoElement.duration.toFixed(1)),
+                            max_duration: parseFloat(videoElement.duration.toFixed(1))
                           }]);
                         };
                       }} className="bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-bold py-2.5 text-[10px] sm:text-xs uppercase tracking-widest transition-colors border-t border-gray-700">
@@ -327,7 +329,9 @@ export default function Studio({ onVideoGenerated }) {
                         <label className="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 font-semibold">Start (s)</label>
                         <input type="number" step="0.5" value={clip.start_time} onChange={(e) => {
                           const newClips = [...timelineClips];
-                          newClips[idx].start_time = parseFloat(e.target.value) || 0;
+                          let val = parseFloat(e.target.value) || 0;
+                          val = Math.max(0, Math.min(val, (clip.end_time || val + 0.5) - 0.5));
+                          newClips[idx].start_time = val;
                           setTimelineClips(newClips);
                         }} className="w-full bg-gray-800 text-white rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 border border-gray-700/50" />
                       </div>
@@ -335,7 +339,9 @@ export default function Studio({ onVideoGenerated }) {
                         <label className="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 font-semibold">End (s)</label>
                         <input type="number" step="0.5" value={clip.end_time} onChange={(e) => {
                           const newClips = [...timelineClips];
-                          newClips[idx].end_time = parseFloat(e.target.value) || 0;
+                          let val = parseFloat(e.target.value) || 0;
+                          val = Math.max(clip.start_time + 0.5, Math.min(val, clip.max_duration || 9999));
+                          newClips[idx].end_time = val;
                           setTimelineClips(newClips);
                         }} className="w-full bg-gray-800 text-white rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 border border-gray-700/50" />
                       </div>
