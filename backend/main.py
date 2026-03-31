@@ -139,7 +139,8 @@ async def generate_reel(request: GenerateRequest):
                 create_preview_reel,
                 custom_video_data,
                 request.aspect_ratio,
-                request.transition_style
+                request.transition_style,
+                getattr(request, 'audio_path', None)
             )
             filename = os.path.basename(final_video_path)
             

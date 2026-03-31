@@ -100,7 +100,8 @@ export default function Studio({ onVideoGenerated }) {
           clips: timelineClips,
           aspect_ratio: aspectRatio,
           transition_style: transitionStyle,
-          is_preview: true
+          is_preview: true,
+          audio_path: mode === 'custom' && generatedAudio ? generatedAudio.local_path : undefined
         })
       });
 

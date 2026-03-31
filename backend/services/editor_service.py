@@ -153,7 +153,7 @@ def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str
         
     return output_path
 
-def create_preview_reel(custom_videos: list, aspect_ratio: str = "9:16", transition_style: str = "none") -> str:
+def create_preview_reel(custom_videos: list, aspect_ratio: str = "9:16", transition_style: str = "none", audio_path: str = None) -> str:
     ffmpeg_exe = get_ffmpeg_exe()
     output_path = os.path.join(TEMP_DIR, f"preview_{uuid.uuid4().hex}.mp4")
     
@@ -161,6 +161,9 @@ def create_preview_reel(custom_videos: list, aspect_ratio: str = "9:16", transit
     
     for vp, start, end in custom_videos:
         cmd.extend(["-t", str(max(0.5, end - start)), "-ss", str(start), "-i", os.path.abspath(vp)])
+        
+    if audio_path and os.path.exists(audio_path):
+        cmd.extend(["-i", os.path.abspath(audio_path)])
         
     ar_map = {"9:16": (360, 640), "1:1": (480, 480), "16:9": (640, 360)}
     w, h = ar_map.get(aspect_ratio, (360, 640))
@@ -197,15 +200,24 @@ def create_preview_reel(custom_videos: list, aspect_ratio: str = "9:16", transit
             
         final_v_out = last_out
 
-    cmd.extend([
+    final_args = [
         "-filter_complex", ";".join(filter_complex_parts),
         "-map", final_v_out,
         "-c:v", "libx264",
         "-preset", "ultrafast",
-        "-crf", "35",
-        "-an",
-        output_path
-    ])
+        "-crf", "35"
+    ]
+    
+    if audio_path and os.path.exists(audio_path):
+        final_args.extend([
+            "-map", f"{len(custom_videos)}:a",
+            "-c:a", "aac"
+        ])
+    else:
+        final_args.append("-an")
+        
+    final_args.append(output_path)
+    cmd.extend(final_args)
     
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
