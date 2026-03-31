@@ -46,6 +46,17 @@ class GenerateRequest(BaseModel):
     aspect_ratio: str = "9:16"
     transition_style: str = "none"
     is_preview: bool = False
+    audio_path: Optional[str] = None
+    subtitles_path: Optional[str] = None
+
+class GenerateAudioRequest(BaseModel):
+    script: str
+    voice: str = "en-US-AriaNeural"
+    rate: str = "+0%"
+    pitch: str = "default"
+    volume: str = "+0%"
+    remove_silence: bool = False
+    enhance_voice: bool = False
 
 @app.get("/")
 def read_root():
@@ -82,6 +93,29 @@ async def download_clip_if_needed(url: str) -> str:
             f.write(chunk)
     return file_path
 
+@app.post("/api/generate_audio")
+async def generate_only_audio(request: GenerateAudioRequest):
+    try:
+        audio_data = await generate_audio(
+            request.script, 
+            voice=request.voice, 
+            rate=request.rate, 
+            pitch=request.pitch,
+            volume=request.volume,
+            remove_silence=request.remove_silence,
+            enhance_voice=request.enhance_voice
+        )
+        audio_filename = os.path.basename(audio_data["audio_path"])
+        return {
+            "status": "success",
+            "audio_url": f"http://localhost:8000/api/video/{audio_filename}",
+            "audio_path": audio_data["audio_path"],
+            "subtitles_path": audio_data["subtitles_path"],
+            "duration": audio_data.get("duration", 0.0)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/generate")
 async def generate_reel(request: GenerateRequest):
     try:
@@ -90,11 +124,12 @@ async def generate_reel(request: GenerateRequest):
             video_paths_to_cleanup = []
             custom_video_data = []
             
-            for clip in request.clips:
-                local_path = await download_clip_if_needed(clip.url)
-                if not local_path.startswith("temp/upload_"):
-                    video_paths_to_cleanup.append(local_path)
-                custom_video_data.append((local_path, clip.start_time, clip.end_time))
+            if request.clips:
+                for clip in request.clips:
+                    local_path = await download_clip_if_needed(clip.url)
+                    if not local_path.startswith("temp/upload_"):
+                        video_paths_to_cleanup.append(local_path)
+                    custom_video_data.append((local_path, clip.start_time, clip.end_time))
                 
             if not custom_video_data:
                 raise HTTPException(status_code=400, detail="No timeline clips to preview.")
@@ -110,20 +145,26 @@ async def generate_reel(request: GenerateRequest):
             
             # Fast cleanup for preview
             for vp in video_paths_to_cleanup:
-                if os.path.exists(vp): os.remove(vp)
+                if vp and os.path.exists(vp): os.remove(vp)
                 
             return {"status": "success", "url": f"http://localhost:8000/api/video/{filename}"}
 
-        # 1. Generate Audio & Subtitles
-        audio_data = await generate_audio(
-            request.script, 
-            voice=request.voice, 
-            rate=request.rate, 
-            pitch=request.pitch,
-            volume=request.volume
-        )
-        audio_path = audio_data["audio_path"]
-        subtitles_path = audio_data["subtitles_path"]
+        # 1. Generate Audio OR bind cached decoupled tracks
+        if request.mode == "custom" and type(request.audio_path) is str and os.path.exists(request.audio_path):
+            audio_path = request.audio_path
+            subtitles_path = request.subtitles_path
+        else:
+            audio_data = await generate_audio(
+                request.script, 
+                voice=request.voice, 
+                rate=request.rate, 
+                pitch=request.pitch,
+                volume=request.volume,
+                remove_silence=request.remove_silence,
+                enhance_voice=request.enhance_voice
+            )
+            audio_path = audio_data["audio_path"]
+            subtitles_path = audio_data["subtitles_path"]
         
         # 2. Process Videos based on mode
         loop = asyncio.get_event_loop()
@@ -141,16 +182,16 @@ async def generate_reel(request: GenerateRequest):
                 audio_path, 
                 video_paths, 
                 subtitles_path,
-                request.remove_silence,
-                request.enhance_voice
+                request.aspect_ratio
             )
         else:
             custom_video_data = []
-            for clip in request.clips:
-                local_path = await download_clip_if_needed(clip.url)
-                if not local_path.startswith("temp/upload_"): # Preserve uploads for reuse
-                    video_paths_to_cleanup.append(local_path)
-                custom_video_data.append((local_path, clip.start_time, clip.end_time))
+            if request.clips:
+                for clip in request.clips:
+                    local_path = await download_clip_if_needed(clip.url)
+                    if not local_path.startswith("temp/upload_"): # Preserve uploads for reuse
+                        video_paths_to_cleanup.append(local_path)
+                    custom_video_data.append((local_path, clip.start_time, clip.end_time))
             if not custom_video_data:
                 raise HTTPException(status_code=400, detail="No clips provided for custom mode.")
                 
@@ -160,8 +201,6 @@ async def generate_reel(request: GenerateRequest):
                 audio_path,
                 custom_video_data,
                 subtitles_path,
-                request.remove_silence,
-                request.enhance_voice,
                 request.aspect_ratio,
                 request.transition_style
             )
@@ -170,10 +209,10 @@ async def generate_reel(request: GenerateRequest):
         
         # Cleanup intermediate files
         try:
-            if os.path.exists(audio_path): os.remove(audio_path)
-            if subtitles_path and os.path.exists(subtitles_path): os.remove(subtitles_path)
+            if not request.audio_path and getattr(audio_path, 'strip', None) and os.path.exists(str(audio_path)): os.remove(str(audio_path))
+            if not request.audio_path and getattr(subtitles_path, 'strip', None) and os.path.exists(str(subtitles_path)): os.remove(str(subtitles_path))
             for vp in video_paths_to_cleanup:
-                if os.path.exists(vp): os.remove(vp)
+                if vp and os.path.exists(vp): os.remove(vp)
         except Exception as cleanup_err:
             print(f"Cleanup Error: {cleanup_err}")
             

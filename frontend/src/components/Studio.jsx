@@ -17,6 +17,8 @@ export default function Studio({ onVideoGenerated }) {
   const [error, setError] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [generatedAudio, setGeneratedAudio] = useState(null);
+  const [audioLoading, setAudioLoading] = useState(false);
 
   // Timeline State
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,6 +117,40 @@ export default function Studio({ onVideoGenerated }) {
     }
   };
 
+  const handleGenerateAudio = async () => {
+    if (!script) {
+      setError("Please provide a script first."); return;
+    }
+    setError(null);
+    setAudioLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/generate_audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          script, voice, rate, pitch, volume,
+          remove_silence: removeSilence,
+          enhance_voice: enhanceVoice 
+        })
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || "Audio generation failed");
+      }
+      const data = await response.json();
+      setGeneratedAudio({
+        url: data.audio_url,
+        local_path: data.audio_path,
+        subtitles_path: data.subtitles_path,
+        duration: data.duration
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAudioLoading(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!script) {
       setError("Please provide a script."); return;
@@ -140,7 +176,9 @@ export default function Studio({ onVideoGenerated }) {
           voice, rate, pitch,
           volume, remove_silence: removeSilence, enhance_voice: enhanceVoice,
           aspect_ratio: aspectRatio,
-          transition_style: transitionStyle
+          transition_style: transitionStyle,
+          audio_path: mode === 'custom' && generatedAudio ? generatedAudio.local_path : undefined,
+          subtitles_path: mode === 'custom' && generatedAudio ? generatedAudio.subtitles_path : undefined
         })
       });
 
@@ -268,9 +306,15 @@ export default function Studio({ onVideoGenerated }) {
             <div className="bg-gray-900/60 p-4 rounded-xl border border-gray-700/50">
               <div className="flex justify-between items-end mb-3">
                 <h3 className="text-white font-bold text-sm uppercase tracking-wide">Timeline Sequence</h3>
-                <span className="text-xs font-bold px-2 py-1 rounded border shadow-inner bg-cyan-900/30 text-cyan-400 border-cyan-800/50">
-                  {getTotalVideoDuration()}s Video Selected
-                </span>
+                {mode === 'custom' && generatedAudio ? (
+                  <span className={`text-xs font-bold px-2 py-1 rounded border shadow-inner ${parseFloat(getTotalVideoDuration()) >= generatedAudio.duration ? 'bg-green-900/30 text-green-400 border-green-800/50' : 'bg-amber-900/30 text-amber-400 border-amber-800/50'}`}>
+                    {getTotalVideoDuration()}s / {generatedAudio.duration}s Required
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold px-2 py-1 rounded border shadow-inner bg-cyan-900/30 text-cyan-400 border-cyan-800/50">
+                    {getTotalVideoDuration()}s Sequence
+                  </span>
+                )}
               </div>
               <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {timelineClips.map((clip, idx) => (
@@ -370,6 +414,31 @@ export default function Studio({ onVideoGenerated }) {
             </select>
           </div>
         </div>
+
+        {mode === 'custom' && (
+          <div className="mt-4 pt-4 border-t border-gray-800">
+            <button 
+              onClick={handleGenerateAudio} 
+              disabled={audioLoading}
+              className={`w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 transform active:scale-[0.98] ${audioLoading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-500/25'}`}
+            >
+              {audioLoading ? 'Synthesizing Edge-TTS Voice...' : '🎙️ Generate Voiceover Audio'}
+            </button>
+            
+            {generatedAudio && (
+              <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-indigo-500/30">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                    Cached Audio Track
+                  </span>
+                  <span className="text-sm font-mono text-gray-300 bg-gray-800 px-2 py-1 rounded">{generatedAudio.duration}s</span>
+                </div>
+                <audio src={generatedAudio.url} controls className="w-full h-8 outline-none" />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="bg-gray-900/40 p-5 rounded-xl border border-gray-700/50 space-y-4">
           <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Advanced Audio</h3>

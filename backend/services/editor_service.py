@@ -88,8 +88,7 @@ def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str
     audio_idx = len(custom_videos)
     
     audio_filters = []
-    if remove_silence:
-        audio_filters.append("silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-35dB")
+    # Disable remove_silence entirely in Custom Mode to preserve UI timeline duration & .vtt sync!
     if enhance_voice:
         audio_filters.append("bass=g=5,treble=g=3,acompressor=ratio=4")
     audio_filter_str = ",".join(audio_filters) if audio_filters else "anull"
