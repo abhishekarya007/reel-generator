@@ -6,7 +6,7 @@ from imageio_ffmpeg import get_ffmpeg_exe
 TEMP_DIR = "temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, remove_silence: bool = False, enhance_voice: bool = False, aspect_ratio: str = "9:16") -> str:
+def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, aspect_ratio: str = "9:16") -> str:
     if not video_paths:
         raise ValueError("At least one video path is required")
         
@@ -30,13 +30,7 @@ def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, 
     ]
     
     # Audio filter chain
-    audio_filters = []
-    if remove_silence:
-        audio_filters.append("silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-35dB")
-    if enhance_voice:
-        audio_filters.append("bass=g=5,treble=g=3,acompressor=ratio=4")
-        
-    audio_filter_str = ",".join(audio_filters) if audio_filters else "anull"
+    audio_filter_str = "anull"
 
     # Check if subtitles present - Note subtitles code disabled below temporarily based on prior instruction
     ar_map = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
@@ -76,7 +70,7 @@ def create_reel(audio_path: str, video_paths: list, subtitles_path: str = None, 
         
     return output_path
 
-def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str = None, remove_silence: bool = False, enhance_voice: bool = False, aspect_ratio: str = "9:16", transition_style: str = "none") -> str:
+def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str = None, aspect_ratio: str = "9:16", transition_style: str = "none") -> str:
     ffmpeg_exe = get_ffmpeg_exe()
     output_path = os.path.join(TEMP_DIR, f"final_{uuid.uuid4().hex}.mp4")
     
@@ -86,12 +80,7 @@ def create_custom_reel(audio_path: str, custom_videos: list, subtitles_path: str
     cmd.extend(["-i", os.path.abspath(audio_path)])
     
     audio_idx = len(custom_videos)
-    
-    audio_filters = []
-    # Disable remove_silence entirely in Custom Mode to preserve UI timeline duration & .vtt sync!
-    if enhance_voice:
-        audio_filters.append("bass=g=5,treble=g=3,acompressor=ratio=4")
-    audio_filter_str = ",".join(audio_filters) if audio_filters else "anull"
+    audio_filter_str = "anull"
     
     filter_complex_parts = []
     
