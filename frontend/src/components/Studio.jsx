@@ -354,23 +354,50 @@ export default function Studio({ onVideoGenerated }) {
                     <div className="flex-1 flex gap-4">
                       <div className="flex flex-col flex-1">
                         <label className="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 font-semibold">Start (s)</label>
-                        <input type="number" step="0.5" value={clip.start_time} onChange={(e) => {
-                          const newClips = [...timelineClips];
-                          let val = parseFloat(e.target.value) || 0;
-                          val = Math.max(0, Math.min(val, (clip.end_time || val + 0.5) - 0.5));
-                          newClips[idx].start_time = val;
-                          setTimelineClips(newClips);
-                        }} className="w-full bg-gray-800 text-white rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 border border-gray-700/50" />
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={clip.start_time}
+                          onWheel={(e) => e.target.blur()}
+                          onChange={(e) => {
+                            const newClips = [...timelineClips];
+                            newClips[idx].start_time = e.target.value;
+                            setTimelineClips(newClips);
+                          }}
+                          onBlur={(e) => {
+                            const newClips = [...timelineClips];
+                            let val = parseFloat(e.target.value);
+                            if (isNaN(val) || val < 0) val = 0;
+                            val = Math.min(val, (parseFloat(clip.end_time) || val + 0.5) - 0.5);
+                            newClips[idx].start_time = parseFloat(val.toFixed(2));
+                            setTimelineClips(newClips);
+                          }}
+                          className="w-full bg-gray-800 text-white rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 border border-gray-700/50"
+                        />
                       </div>
                       <div className="flex flex-col flex-1">
                         <label className="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 font-semibold">End (s)</label>
-                        <input type="number" step="0.5" value={clip.end_time} onChange={(e) => {
-                          const newClips = [...timelineClips];
-                          let val = parseFloat(e.target.value) || 0;
-                          val = Math.max(clip.start_time + 0.5, Math.min(val, clip.max_duration || 9999));
-                          newClips[idx].end_time = val;
-                          setTimelineClips(newClips);
-                        }} className="w-full bg-gray-800 text-white rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 border border-gray-700/50" />
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={clip.end_time}
+                          onWheel={(e) => e.target.blur()}
+                          onChange={(e) => {
+                            const newClips = [...timelineClips];
+                            newClips[idx].end_time = e.target.value;
+                            setTimelineClips(newClips);
+                          }}
+                          onBlur={(e) => {
+                            const newClips = [...timelineClips];
+                            let val = parseFloat(e.target.value);
+                            const minEnd = (parseFloat(clip.start_time) || 0) + 0.5;
+                            if (isNaN(val) || val < minEnd) val = minEnd;
+                            if (clip.max_duration && val > clip.max_duration) val = clip.max_duration;
+                            newClips[idx].end_time = parseFloat(val.toFixed(2));
+                            setTimelineClips(newClips);
+                          }}
+                          className="w-full bg-gray-800 text-white rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 border border-gray-700/50"
+                        />
                       </div>
                     </div>
                     <button onClick={() => setTimelineClips(timelineClips.filter(c => c.id !== clip.id))} className="w-8 h-8 rounded-md bg-red-900/20 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors border border-red-900/40">
