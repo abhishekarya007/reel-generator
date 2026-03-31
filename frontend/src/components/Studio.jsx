@@ -456,7 +456,15 @@ export default function Studio({ onVideoGenerated }) {
               disabled={audioLoading}
               className={`w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 transform active:scale-[0.98] ${audioLoading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-500/25'}`}
             >
-              {audioLoading ? 'Synthesizing Edge-TTS Voice...' : '🎙️ Generate Voiceover Audio'}
+              {audioLoading ? (
+                <div className="flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Synthesizing Voice...</span>
+                </div>
+              ) : '🎙️ Generate Voiceover Audio'}
             </button>
             
             {generatedAudio && (
@@ -551,7 +559,15 @@ export default function Studio({ onVideoGenerated }) {
               disabled={loading || previewLoading}
               className={`flex-1 py-4 px-6 rounded-xl font-bold transition-all transform active:scale-[0.98] ${previewLoading ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 text-white shadow-lg shadow-purple-500/25'}`}
             >
-              {previewLoading ? 'Rendering Fast Preview...' : '👁️ Fast Preview'}
+              {previewLoading ? (
+                <div className="flex items-center justify-center gap-2 w-full">
+                  <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Rendering Fast Preview...</span>
+                </div>
+              ) : '👁️ Fast Preview'}
             </button>
           )}
           <button 
@@ -559,7 +575,15 @@ export default function Studio({ onVideoGenerated }) {
             disabled={loading || previewLoading}
             className={`flex-1 py-4 px-6 rounded-xl font-bold transition-all transform active:scale-[0.98] ${loading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25'}`}
           >
-            {loading ? 'Rendering Pipeline Active...' : 'Generate Reel'}
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 w-full">
+                <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Pipeline Active...</span>
+              </div>
+            ) : 'Generate Reel'}
           </button>
         </div>
       </div>
