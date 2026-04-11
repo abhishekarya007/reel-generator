@@ -19,6 +19,8 @@ export default function Studio({ onVideoGenerated }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [generatedAudio, setGeneratedAudio] = useState(null);
   const [audioLoading, setAudioLoading] = useState(false);
+  const [audioMode, setAudioMode] = useState('generate'); // 'generate' | 'upload'
+  const [isDraggingAudio, setIsDraggingAudio] = useState(false);
 
   // Timeline State
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,6 +143,34 @@ export default function Studio({ onVideoGenerated }) {
         throw new Error(err.detail || "Audio generation failed");
       }
       const data = await response.json();
+      setGeneratedAudio({
+        url: data.audio_url,
+        local_path: data.audio_path,
+        subtitles_path: data.subtitles_path,
+        duration: data.duration
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAudioLoading(false);
+    }
+  };
+
+  const handleUploadAudio = async (file) => {
+    if (!file) return;
+    const allowed = ['mp3', 'wav', 'm4a', 'aac', 'ogg'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+      setError('Unsupported format. Upload a mp3, wav, m4a, aac or ogg file.'); return;
+    }
+    setError(null);
+    setAudioLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_URL}/api/audio/upload`, { method: 'POST', body: formData });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Upload failed'); }
+      const data = await res.json();
       setGeneratedAudio({
         url: data.audio_url,
         local_path: data.audio_path,
@@ -477,23 +507,95 @@ export default function Studio({ onVideoGenerated }) {
         </div>
 
         {mode === 'custom' && (
-          <div className="mt-4 pt-4 border-t border-gray-800">
-            <button 
-              onClick={handleGenerateAudio} 
-              disabled={audioLoading}
-              className={`w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 transform active:scale-[0.98] ${audioLoading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-500/25'}`}
-            >
-              {audioLoading ? (
-                <div className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>Synthesizing Voice...</span>
-                </div>
-              ) : '🎙️ Generate Voiceover Audio'}
-            </button>
-            
+          <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
+            {/* Tab switcher */}
+            <div className="flex gap-2 bg-gray-900/60 p-1 rounded-xl border border-gray-700/50">
+              <button
+                onClick={() => setAudioMode('generate')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all ${
+                  audioMode === 'generate'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                🎙️ Generate TTS
+              </button>
+              <button
+                onClick={() => setAudioMode('upload')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all ${
+                  audioMode === 'upload'
+                    ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                📂 Upload Audio
+              </button>
+            </div>
+
+            {audioMode === 'generate' ? (
+              <button
+                onClick={handleGenerateAudio}
+                disabled={audioLoading}
+                className={`w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-2 transform active:scale-[0.98] ${audioLoading ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-500/25'}`}
+              >
+                {audioLoading ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Synthesizing Voice...</span>
+                  </div>
+                ) : '🎙️ Generate Voiceover Audio'}
+              </button>
+            ) : (
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingAudio(true); }}
+                onDragLeave={() => setIsDraggingAudio(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingAudio(false);
+                  const file = e.dataTransfer.files[0];
+                  if (file) handleUploadAudio(file);
+                }}
+                className={`relative flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
+                  isDraggingAudio
+                    ? 'border-teal-400 bg-teal-900/20 shadow-[0_0_20px_rgba(20,184,166,0.2)]'
+                    : 'border-gray-600 hover:border-teal-500 hover:bg-teal-900/10'
+                }`}
+                onClick={() => document.getElementById('audio-file-input').click()}
+              >
+                <input
+                  id="audio-file-input"
+                  type="file"
+                  accept=".mp3,.wav,.m4a,.aac,.ogg,audio/*"
+                  className="hidden"
+                  onChange={(e) => handleUploadAudio(e.target.files[0])}
+                />
+                {audioLoading ? (
+                  <div className="flex items-center gap-3 text-teal-400">
+                    <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="font-semibold">Uploading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-teal-900/40 flex items-center justify-center border border-teal-700/50">
+                      <svg className="w-6 h-6 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-300">Drop audio file here or <span className="text-teal-400">browse</span></p>
+                      <p className="text-xs text-gray-500 mt-1">MP3, WAV, M4A, AAC, OGG supported</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {generatedAudio && (
               <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-indigo-500/30">
                 <div className="flex justify-between items-center mb-2">

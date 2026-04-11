@@ -82,6 +82,41 @@ async def upload_video(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
     return {"url": f"http://localhost:8000/api/video/{filename}", "path": file_path}
 
+@app.post("/api/audio/upload")
+async def upload_audio(file: UploadFile = File(...)):
+    allowed_types = {"audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/mp4", "audio/m4a", "audio/aac", "audio/ogg", "audio/x-m4a"}
+    ct = (file.content_type or "").lower()
+    ext = (file.filename or "").split(".")[-1].lower()
+    if ct not in allowed_types and ext not in {"mp3", "wav", "m4a", "aac", "ogg"}:
+        raise HTTPException(status_code=400, detail="Unsupported audio format. Use mp3, wav, m4a, aac or ogg.")
+    
+    safe_ext = ext if ext in {"mp3", "wav", "m4a", "aac", "ogg"} else "mp3"
+    filename = f"upload_audio_{uuid.uuid4().hex}.{safe_ext}"
+    file_path = os.path.join("temp", filename)
+    os.makedirs("temp", exist_ok=True)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Measure exact duration via ffprobe
+    duration = 0.0
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", file_path],
+            capture_output=True, text=True, timeout=15
+        )
+        duration = round(float(result.stdout.strip()), 2)
+    except Exception:
+        pass
+    
+    return {
+        "status": "success",
+        "audio_url": f"http://localhost:8000/api/video/{filename}",
+        "audio_path": file_path,
+        "subtitles_path": None,
+        "duration": duration
+    }
+
 async def download_clip_if_needed(url: str) -> str:
     if url.startswith("http://localhost:8000/api/video/"):
         return os.path.join("temp", url.split("/")[-1])
